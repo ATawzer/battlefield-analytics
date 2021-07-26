@@ -7,6 +7,7 @@ name = "pypi"
 selenium = "*"
 pymongo = "*"
 python-dotenv = "*"
+beautifulsoup4 = "*"
 
 [dev-packages]
 
