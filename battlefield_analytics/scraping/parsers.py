@@ -1,32 +1,18 @@
 # Functions and classes for parsing out webpages
 from bs4 import BeautifulSoup
+import re
 
-class GameReportParser:
+class BF4GameReportParser:
     """
-    Parses a raw html of a game report into something storable into a raw data object
+    Parses a raw html of a game report into something storable into a raw data object.
+    Specific to BF4, and more specifically battlelog.
     """
 
     def __init__(self):
 
         None
 
-    def parse(self, html, mode):
-        """
-        High-level call for parsing
-        """
-
-        # Prep file
-        page = BeautifulSoup(html)
-
-        # Allocate to correct parsing function
-        if mode=='bf4':
-            self.parse_bf4(page)
-        elif mode=='bfv':
-            self.parse_bfv(page)
-        else:
-            raise Exception(f"Non-supported Mode: {mode}")
-
-    def parse_bf4(self, page):
+    def parse(self, page):
         """
         More specific parsing function tailored to BF4 reports (battlelog).
         This must be a generic report, not user specific.
@@ -34,56 +20,105 @@ class GameReportParser:
         inputs: page, a BeatuifulSoup object for parsing
         returns: Parsed JSON
         """
-        json_data = {}
+
+        match_data = self.parse_team_results(page)
+        match_data['player_data'] = self.parse_all_players(page)
+
+        return match_data
+
+    def parse_team_results(self, page):
+        """
+        Parses the overall results of the round (everything that doesn't involve players)
+        """
+        json_data = {'game_id':page.find_all('input', {'id':'battlereport-load-url'})[0].get('value').split('/')[4]
+                    ,'team_1':page.find_all('div', {'class':'team clearfix'})[0].text.replace('\n', '').split(' ')[0]
+                    ,'team_1_score':page.find_all('div', {'class':'team clearfix'})[0].text.replace('\n', '').split(' ')[1]
+                    ,'team_2':page.find_all('div', {'class':'team clearfix'})[1].text.replace('\n', '').split(' ')[0]
+                    ,'team_2_score':page.find_all('div', {'class':'team clearfix'})[1].text.replace('\n', '').split(' ')[1]
+                    ,'winning_team':page.find_all('div', {'class':'winning-team'})[0].text.split(' ')[1]
+                    ,'score_type':page.find_all('div', {'class':'score-type'})[0].text.replace('\n', '').replace(' ', '')
+                    ,'map':page.find_all('div', {'class':'info'})[0].text.replace('\n', '').split('-')[0][1:-2]
+                    ,'round_length':self.parse_round_time(page.find_all('div', {'class':'info'})[0].text.replace('\n', '').split('-')[2][2:-1].replace('Round time: ', ''))
+                    ,'timestamp':page.find_all('span', {'class':'base-ago'})[0].get('data-timestamp')
+                    ,'game_mode':page.find_all('div', {'class':'info'})[0].text.replace('\n', '').split('-')[1][2:-2]}
+
+        # Data that references the above data
+        json_data['team_1_players'] = len(page.find_all('tbody', {'data-gameid':json_data['game_id']})[0])
+        json_data['team_2_players'] = len(page.find_all('tbody', {'data-gameid':json_data['game_id']})[1])
 
         return json_data
 
-    def parse_bfv(self, page):
+    def parse_all_players(self, page):
         """
-        Specific parsing function for BFV reports (battlefieldtracker.com)
-
-        inputs: page, a BeatuifulSoup object for parsing
-        returns: Parsed JSON
+        Extracts non-hidden players from report and gets their data individually
         """
-        json_data = {}
+        max_players = 40 # likely won't exceed this amount (per team)
+        data = {}
+        for i in range(max_players):
 
-        return json_data
+            # finds the ith player on each side of the scorecard
+            regex = re.compile(f'.*battlereport-teamstats-row pos_nr{i+1} player.*')
+            players = page.find_all('tr', {'class':regex})
 
+            if len(players) > 1:
+                for j, player in enumerate(players):
+                    player_data = self.parse_player(player)
+                    player_data['ReportRank'] = i+1
+                    player_data['team'] = j+1
+                    data[player_data['UserId']] = player_data
 
-def parse_bf4_player(pd):
+        return data
+
+    def parse_hidden_players(self, page):
         """
-        Parses a row of player data.
+        Players who left early (dnf) are hidden in report. This will parse them
         """
+        max_players = 60 # likely won't exceed this amount (per team)
+        data = {}
+        for i in range(max_players):
 
-        # What we want for each player
-        player_data = {'K':int(pd.find_all('td', {'class':'center'})[1].text.replace(',', '')), 
-            'D':int(pd.find_all('td', {'class':'center'})[2].text.replace(',', '')), 
-            'Score':int(pd.find_all('td', {'class':'last right'})[0].text.replace(',', '')), 
-            'Name':pd.find('span', {'class':'common-playername-personaname-nolink'}).text, 
-            'UserId':pd.get('data-userid'), 
-            'PersonaId':pd.get('data-personaid'), 
-            'SoldierRank':list(pd.find('div', {'class':'user-personarank'}).contents)[1].get('data-rank'),
-            'Squad':pd.get('data-squad'),
-            'UserReportLink':pd.get('data-path')}
-        
-        return player_data
+            # finds the ith player on each side of the scorecard
+            regex = 
+            players = page.find_all('tr', {'class':f'battlereport-teamstats-row pos_nr{i+1} player dnf'})
 
-max_players = 32
-data = {}
-for i in range(max_players):
+            if len(players) > 1:
+                for j, player in enumerate(players):
+                    player_data = self.parse_player(player)
+                    player_data['ReportRank'] = i+1
+                    player_data['team'] = j+1
+                    data[player_data['UserId']] = player_data
 
-    # finds the ith player on each side of the scorecard
-    players = BeautifulSoup(open('./data/game_reports/bf4_1419503401892035136.html', 'r')).find_all('tr', {'class':f'battlereport-teamstats-row pos_nr{i+1} player'})
+        return data
 
-    if len(players) > 0:
-        for player in players:
-            player_data = parse_player(player)
-            player_data['ReportRank'] = i+1
-            data[player_data['UserId']] = player_data
+    def parse_player(self, pd):
+            """
+            Parses a row of player data.
+            """
 
-test = open('./data/game_reports/bf4_1419503401892035136.html', 'r')
-player = BeautifulSoup(test).find_all('tr', {'class':'battlereport-teamstats-row pos_nr16 player'})[1]
+            # What we want for each player
+            player_data = {'K':int(pd.find_all('td', {'class':'center'})[1].text.replace(',', '')), 
+                'D':int(pd.find_all('td', {'class':'center'})[2].text.replace(',', '')), 
+                'Score':int(pd.find_all('td', {'class':'last right'})[0].text.replace(',', '')), 
+                'Name':pd.find('span', {'class':'common-playername-personaname-nolink'}).text, 
+                'UserId':pd.get('data-userid'), 
+                'PersonaId':pd.get('data-personaid'), 
+                'SoldierRank':list(pd.find('div', {'class':'user-personarank'}).contents)[1].get('data-rank'),
+                'Squad':pd.get('data-squad'),
+                'UserReportLink':pd.get('data-path')}
+            
+            return player_data
 
-print(parse_player(player))
+    def parse_round_time(self, time_string):
+        """
+        Parses battlelogs time string from text into seconds.
+        """
+        return (int(time_string.split('m ')[0])*60) + (int(time_string.split('m ')[1].split('s')[0]))
 
-print(list(player.find('div', {'class':'user-personarank'}).contents)[1].get('data-rank'))
+
+
+with open('./data/game_reports/bf4_1419503401892035136.html', 'r') as test:
+
+    page = BeautifulSoup(test)
+    print(len(page.find_all('tbody', {'data-gameid':'1419503401892035136'})[1]))
+    #print(BF4GameReportParser().parse(page))
+
