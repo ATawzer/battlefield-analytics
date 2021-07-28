@@ -22,7 +22,17 @@ class BF4GameReportParser:
         """
 
         match_data = self.parse_team_results(page)
-        match_data['player_data'] = self.parse_all_players(page)
+
+        # compute larger team for data cleanup
+        larger_team = None
+        if match_data['team_1_players'] > match_data['team_2_players']:
+            larger_team = 'team_1'
+        elif match_data['team_2_players'] > match_data['team_1_players']:
+            larger_team = 'team_2'
+        else:
+            larger_team = 'Equal'
+
+        match_data['player_data'] = self.parse_all_players(page, larger_team)
 
         return match_data
 
@@ -48,7 +58,7 @@ class BF4GameReportParser:
 
         return json_data
 
-    def parse_all_players(self, page):
+    def parse_all_players(self, page, larger_team):
         """
         Extracts non-hidden players from report and gets their data individually
         """
@@ -65,28 +75,14 @@ class BF4GameReportParser:
                     player_data = self.parse_player(player)
                     player_data['ReportRank'] = i+1
                     player_data['team'] = j+1
+                    player_data['dnf'] = 1 if 'dnf' in player.get('class') else 0
                     data[player_data['UserId']] = player_data
-
-        return data
-
-    def parse_hidden_players(self, page):
-        """
-        Players who left early (dnf) are hidden in report. This will parse them
-        """
-        max_players = 60 # likely won't exceed this amount (per team)
-        data = {}
-        for i in range(max_players):
-
-            # finds the ith player on each side of the scorecard
-            regex = 
-            players = page.find_all('tr', {'class':f'battlereport-teamstats-row pos_nr{i+1} player dnf'})
-
-            if len(players) > 1:
-                for j, player in enumerate(players):
-                    player_data = self.parse_player(player)
-                    player_data['ReportRank'] = i+1
-                    player_data['team'] = j+1
-                    data[player_data['UserId']] = player_data
+            elif len(players) == 1:
+                player_data = self.parse_player(players[0])
+                player_data['ReportRank'] = i+1
+                player_data['team'] = larger_team
+                player_data['dnf'] = 1 if 'dnf' in player.get('class') else 0
+                data[player_data['UserId']] = player_data
 
         return data
 
@@ -118,7 +114,4 @@ class BF4GameReportParser:
 
 with open('./data/game_reports/bf4_1419503401892035136.html', 'r') as test:
 
-    page = BeautifulSoup(test)
-    print(len(page.find_all('tbody', {'data-gameid':'1419503401892035136'})[1]))
-    #print(BF4GameReportParser().parse(page))
-
+    print(BF4GameReportParser().parse(page))
