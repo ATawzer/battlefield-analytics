@@ -8,6 +8,7 @@ selenium = "*"
 pymongo = "*"
 python-dotenv = "*"
 beautifulsoup4 = "*"
+tqdm = "*"
 
 [dev-packages]
 
