@@ -1,6 +1,7 @@
 # Functions and classes for parsing out webpages
-from bs4 import BeautifulSoup
 import re
+
+from bs4 import BeautifulSoup
 
 class BF4GameReportParser:
     """
@@ -110,8 +111,39 @@ class BF4GameReportParser:
         """
         return (int(time_string.split('m ')[0])*60) + (int(time_string.split('m ')[1].split('s')[0]))
 
+class BF4UserReportsParser:
+    """
+    Parses a users recent repors to extract game-ids for parsing.
+    """
+
+    def __init__(self):
+
+        None
+
+    def parse(self, page):
+        """
+        High-level wrapper for parsing necessary elements from a BeautifulSoup page.
+        """
+
+        reports_data = {}
+        entries = page.find_all('table', {'class':'table table-hover battlereports-table'})[1].find_all('tr')
+        for entry in entries:
+            temp = self.parse_report_entry(entry)
+            reports_data[temp['game_id']] = temp
+
+        return reports_data
+
+    def parse_report_entry(self, entry):
+        """
+        Parses an individual row of the loaded reports
+        """
+        entry_data = {'game_id':entry.get('data-reportid')
+                       ,'server_name':page.find_all('table', {'class':'table table-hover battlereports-table'})[1].find_all('tr')[0].find('div', {'class':'map-info pull-left'}).text.split('\n')[2]}
+
+        return entry_data
 
 
-with open('./data/game_reports/bf4_1419503401892035136.html', 'r') as test:
+with open('./data/user_game_reports/bf4_1555715504.html', 'r') as test:
 
-    print(BF4GameReportParser().parse(page))
+    page = BeautifulSoup(test)
+    print(BF4UserReportsParser().parse(page))

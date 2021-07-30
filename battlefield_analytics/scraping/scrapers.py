@@ -1,10 +1,11 @@
 # Main scraper client interface. Creates a scraper capable of hitting pages
+from bs4 import BeautifulSoup
 
 # Internal
-from .getter import BAGetter, 
-from .parser import BAParser
+from .getters import BAGetter, 
+from .parsers import BAParser
 
-class BAScraper:
+class BF4Scraper:
     """
     Orchestrates parsers and getters in succession to scrape
     large swathes of games, users, etc.
