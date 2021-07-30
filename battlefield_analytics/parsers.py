@@ -125,11 +125,11 @@ class BF4UserReportsParser:
         High-level wrapper for parsing necessary elements from a BeautifulSoup page.
         """
 
-        reports_data = {}
         entries = page.find_all('table', {'class':'table table-hover battlereports-table'})[1].find_all('tr')
-        for entry in entries:
+        reports_data = [{} for x in entries]
+        for i, entry in enumerate(entries):
             temp = self.parse_report_entry(entry)
-            reports_data[temp['game_id']] = temp
+            reports_data[i] = temp
 
         return reports_data
 
@@ -138,12 +138,7 @@ class BF4UserReportsParser:
         Parses an individual row of the loaded reports
         """
         entry_data = {'game_id':entry.get('data-reportid')
-                       ,'server_name':page.find_all('table', {'class':'table table-hover battlereports-table'})[1].find_all('tr')[0].find('div', {'class':'map-info pull-left'}).text.split('\n')[2]}
+                       ,'data_platform':entry.get('data-platform')
+                       ,'server_name':entry.find('div', {'class':'map-info pull-left'}).text.split('\n')[2]}
 
         return entry_data
-
-
-with open('./data/user_game_reports/bf4_1555715504.html', 'r') as test:
-
-    page = BeautifulSoup(test)
-    print(BF4UserReportsParser().parse(page))
