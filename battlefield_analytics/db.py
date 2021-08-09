@@ -4,6 +4,9 @@ from pymongo import MongoClient
 import os
 from tqdm import tqdm
 
+import logging
+l = logging.getLogger()
+
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -20,7 +23,7 @@ class BFADB:
                 self.mc = MongoClient(os.getenv('mongo_host'),
                                     username=os.getenv('mongo_user'),
                                     password=os.getenv('mongo_pass'),
-                                    authSource=os.getenv('mongo_db'),
+                                    authSource=os.getenv('mongo_db_auth'),
                                     authMechanism='SCRAM-SHA-256')
             except:
                 raise Exception("Database connections could not be created from environment. Check connection and/or environment variables.")
@@ -51,7 +54,7 @@ class BFADB:
         Returns game reports from the given criteria.
 
         Parameters:
-            - Fields -> list of fields to include (id is always returned). Leave blank for all
+            - Fields -> list of fields to include (id is always returned).
 
         Filters:
             - parsed -> [True, False, 'either'] whether to return parsed or unparsed reports
@@ -65,10 +68,8 @@ class BFADB:
         cols = {'_id':1}
         if len(fields) > 0:
             cols.update({x:1 for x in fields})
-        else:
-            cols.update({'parsed':0})
 
-        r = list(self.game_reports(q, cols))
+        r = list(self.game_reports.find(q, cols))
 
         return r
 
@@ -91,6 +92,7 @@ class BFADB:
 
         q = {'_id':report_data['game_id']}
         report_data['_id'] = report_data['game_id']
+        report_data['parsed'] = parsed
         self.game_reports.update_one(q, {"$set":report_data}, upsert=True)
 
     def post_many_game_reports(self, report_data_list, parsed=False):
@@ -100,10 +102,19 @@ class BFADB:
         Required Fields - See post_game_report
         Notes:
             - parsed applies to every included record, cannot be split
+            - Will check the incoming list against the database before attempting
         """
 
-        for report in self.tqdm(report_data_list, leave=False):
-            self.post_game_report(report)
+        # Remove previously written reports
+        if not parsed:
+            parsed_reports = [x['_id'] for x in list(self.game_reports.find({ '_id':1}))]
+            to_write = [x for x in report_data_list if x['game_id'] not in parsed_reports]
+            l.debug(f"{len(report_data_list) - len(to_write)} removed, already been parsed.")
+        else: 
+            to_write = report_data_list
+
+        for report in self.tqdm(to_write, leave=False):
+            self.post_game_report(report, parsed=parsed)
 
     
     # Players
@@ -125,3 +136,16 @@ class BFADB:
 
         q = {'user_id':player_data['user_id'], 'persona_id':player_data['persona_id'], 'platform':player_data['platform']}
         self.players.update_one(q, {"$set":player_data}, upsert=True)
+
+    def post_game_report_players(self, players, platform):
+        """
+        Writes the players from a report that have not been seen.
+        """
+
+        current_players = [x["user_id"] for x in self.players.find({}, {"_id":1})]
+        to_write = [v for k, v in players.items() if v['user_id'] not in current_players]
+
+        for player in to_write:
+            player['platform'] = platform
+            player['last_scraped'] = '2000-01-01'
+            self.post_player(player)

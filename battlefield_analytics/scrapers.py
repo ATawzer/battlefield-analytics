@@ -120,5 +120,3 @@ class BF4UserReportsScraper:
 
         with open(path+name, 'w') as f:
             f.write(self.browser.page_source)
-
-BF4UserReportsScraper('D:/Documents/gecko_driver/geckodriver.exe').get('https://battlelog.battlefield.com/bf4/soldier/DangerGilt/battlereports/1555715504/ps4/', save=True)
