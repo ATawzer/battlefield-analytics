@@ -2,7 +2,7 @@
 from selenium import webdriver
 import logging
 import time
-l = logging.getLogger()
+l = logging.getLogger('crawler')
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -40,9 +40,9 @@ class GameReportScraper:
             raise Exception("Unknown URL type, must be from a supported type.")
 
         if mode=='bfv':
-            element = WebDriverWait(self.browser, 20).until(ec.visibility_of_element_located((By.CLASS_NAME, "table-rows")))
+            element = WebDriverWait(self.browser, 120).until(ec.visibility_of_element_located((By.CLASS_NAME, "table-rows")))
         elif mode=='bf4':
-            self.browser.implicitly_wait(10)
+            element = WebDriverWait(self.browser, 120).until(ec.visibility_of_element_located((By.ID, "battlereport-round-summary")))
 
         if save:
             self.save(url, mode)

@@ -1,5 +1,7 @@
 # Functions and classes for parsing out webpages
 import re
+import logging
+l = logging.getLogger('crawler')
 
 from bs4 import BeautifulSoup
 
@@ -74,16 +76,19 @@ class BF4GameReportParser:
             if len(players) > 1:
                 for j, player in enumerate(players):
                     player_data = self.parse_player(player)
-                    player_data['ReportRank'] = i+1
-                    player_data['team'] = j+1
-                    player_data['dnf'] = 1 if 'dnf' in player.get('class') else 0
-                    data[player_data['UserId']] = player_data
+                    if player_data is None:
+                        continue
+                    else:
+                        player_data['report_rank'] = i+1
+                        player_data['team'] = j+1
+                        player_data['dnf'] = 1 if 'dnf' in player.get('class') else 0
+                        data[player_data['user_id']] = player_data
             elif len(players) == 1:
                 player_data = self.parse_player(players[0])
-                player_data['ReportRank'] = i+1
+                player_data['report_rank'] = i+1
                 player_data['team'] = larger_team
                 player_data['dnf'] = 1 if 'dnf' in player.get('class') else 0
-                data[player_data['UserId']] = player_data
+                data[player_data['user_id']] = player_data
 
         return data
 
@@ -93,15 +98,19 @@ class BF4GameReportParser:
             """
 
             # What we want for each player
-            player_data = {'K':int(pd.find_all('td', {'class':'center'})[1].text.replace(',', '')), 
-                'D':int(pd.find_all('td', {'class':'center'})[2].text.replace(',', '')), 
-                'Score':int(pd.find_all('td', {'class':'last right'})[0].text.replace(',', '')), 
-                'Name':pd.find('span', {'class':'common-playername-personaname-nolink'}).text, 
-                'UserId':pd.get('data-userid'), 
-                'PersonaId':pd.get('data-personaid'), 
-                'SoldierRank':list(pd.find('div', {'class':'user-personarank'}).contents)[1].get('data-rank'),
-                'Squad':pd.get('data-squad'),
-                'UserReportLink':pd.get('data-path')}
+            try:
+                player_data = {'kills':int(pd.find_all('td', {'class':'center'})[1].text.replace(',', '')), 
+                    'deaths':int(pd.find_all('td', {'class':'center'})[2].text.replace(',', '')), 
+                    'score':int(pd.find_all('td', {'class':'last right'})[0].text.replace(',', '')), 
+                    'gamertag':pd.find('span', {'class':'common-playername-personaname-nolink'}).text, 
+                    'user_id':pd.get('data-userid'), 
+                    'persona_id':pd.get('data-personaid'), 
+                    'soldier_rank':list(pd.find('div', {'class':'user-personarank'}).contents)[1].get('data-rank'),
+                    'squad':pd.get('data-squad'),
+                    'user_report_link':pd.get('data-path')}
+            except:
+                l.error(f"Encountered an Issue processing {pd}")
+                return None
             
             return player_data
 

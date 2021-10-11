@@ -3,9 +3,10 @@
 from pymongo import MongoClient
 import os
 from tqdm import tqdm
+import datetime
 
 import logging
-l = logging.getLogger()
+l = logging.getLogger('crawler')
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -118,6 +119,17 @@ class BFADB:
 
     
     # Players
+    def get_unscraped_players(self, days=7):
+        """
+        Returns players who haven't been scraped within parameter:days of today.
+        """
+
+        start_date = (datetime.datetime.now() - datetime.timedelta(days=days))
+        q = {"last_scraped":{"$gte":start_date}}
+        cols = {"persona_id":1, "platform":1, "gamertag":1}
+
+        return list(self.players.find(q, cols))
+
     def post_player(self, player_data):
         """
         Upserts a player record
@@ -131,7 +143,7 @@ class BFADB:
         """
 
         # Data integrity
-        if len(set('user_id', 'persona_id', 'gamertag', 'platform', 'last_scraped').intersection(set(player_data.keys()))) < 5:
+        if len(set(['user_id', 'persona_id', 'gamertag', 'platform', 'last_scraped']).intersection(set(player_data.keys()))) < 5:
             raise Exception(f"Missing required fields: {list(set('user_id', 'persona_id', 'gamertag', 'platform', 'last_scraped')-set(player_data.keys()))}")
 
         q = {'user_id':player_data['user_id'], 'persona_id':player_data['persona_id'], 'platform':player_data['platform']}
@@ -142,7 +154,7 @@ class BFADB:
         Writes the players from a report that have not been seen.
         """
 
-        current_players = [x["user_id"] for x in self.players.find({}, {"_id":1})]
+        current_players = [x["user_id"] for x in self.players.find({}, {"_id":1, "user_id":1})]
         to_write = [v for k, v in players.items() if v['user_id'] not in current_players]
 
         for player in to_write:
