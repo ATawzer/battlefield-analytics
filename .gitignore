@@ -130,3 +130,8 @@ dmypy.json
 
 # Scratch / testing
 scratch.py
+
+# Data
+.css
+.download
+/samples

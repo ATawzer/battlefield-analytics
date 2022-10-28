@@ -1,0 +1,17 @@
+body {
+    background-color: rgb(211, 211, 211);
+      font-family: Verdana, sans-serif;
+      font-size: 18px;
+      color: rgb(66, 66, 66);
+}
+
+.app-header {
+    height: 60px;
+    line-height: 60px;
+    border-bottom: thin rgb(66, 66, 66) solid;
+}
+
+.app-header .app-header--title {
+    font-size: 28px;
+    padding-left: 7px;
+}

@@ -4,11 +4,21 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+python-dotenv = "*"
 selenium = "*"
 pymongo = "*"
-python-dotenv = "*"
-beautifulsoup4 = "*"
+bs4 = "*"
+numpy = "*"
 tqdm = "*"
+sqlalchemy = "*"
+pandas = "*"
+pymysql = "*"
+jupyter = "*"
+seaborn = "*"
+dash = "*"
+jupyter-dash = "*"
+dash-html-components = "*"
+scikit-learn = "*"
 
 [dev-packages]
 
